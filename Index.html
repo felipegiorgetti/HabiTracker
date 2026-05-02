@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habit Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a18; --paper: #f5f2eb; --paper2: #ede9df;
+    --line: #c8c3b5; --accent: #2d5a3d; --miss: #b84c3a;
+    --today: #c9a84c; --muted: #8a8577;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: 'DM Mono', monospace; min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(0,0,0,0.015) 28px, rgba(0,0,0,0.015) 29px); pointer-events: none; z-index: 0; }
+
+/* ══ User Screen ══ */
+#userScreen { position: fixed; inset: 0; background: var(–paper); z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rem; padding: 2rem; }
+#userScreen.hidden { display: none; }
+.us-title { font-family: ‘DM Serif Display’, serif; font-size: 2.4rem; letter-spacing: -0.02em; text-align: center; }
+.us-title span { font-style: italic; color: var(–accent); }
+.us-sub { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(–muted); text-align: center; margin-top: 6px; }
+.user-grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 560px; }
+.user-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 22px; border: 1px solid var(–line); border-radius: 4px; background: #fff8f0; cursor: pointer; transition: all 0.18s; min-width: 110px; position: relative; }
+.user-card:hover { border-color: var(–ink); transform: translateY(-2px); }
+.u-avatar { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: ‘DM Serif Display’, serif; font-size: 1.4rem; color: #fff; flex-shrink: 0; }
+.u-name { font-size: 12px; font-weight: 500; text-align: center; }
+.u-del { position: absolute; top: 5px; right: 7px; font-size: 13px; color: var(–muted); background: none; border: none; cursor: pointer; opacity: 0; transition: opacity 0.1s; line-height: 1; }
+.user-card:hover .u-del { opacity: 1; }
+.u-del:hover { color: var(–miss); }
+.add-user-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 22px; border: 1px dashed var(–line); border-radius: 4px; cursor: pointer; min-width: 110px; color: var(–muted); transition: all 0.18s; font-size: 12px; }
+.add-user-card:hover { border-color: var(–ink); color: var(–ink); }
+.add-icon { font-size: 2rem; line-height: 1; }
+
+/* Modal */
+#newUserModal { display: none; flex-direction: column; gap: 1rem; background: #fff8f0; border: 1px solid var(–ink); border-radius: 4px; padding: 1.5rem; max-width: 340px; width: 100%; }
+#newUserModal.show { display: flex; }
+.modal-title { font-family: ‘DM Serif Display’, serif; font-size: 1.3rem; }
+.mfield { display: flex; flex-direction: column; gap: 5px; }
+.mlabel { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(–muted); }
+.minput { font-family: ‘DM Mono’, monospace; font-size: 13px; padding: 7px 9px; border: 1px solid var(–line); border-radius: 2px; background: transparent; color: var(–ink); outline: none; }
+.minput:focus { border-color: var(–ink); }
+.color-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.cswatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.12s; }
+.cswatch.sel { border-color: var(–ink); transform: scale(1.25); }
+.mbtns { display: flex; gap: 8px; justify-content: flex-end; }
+.btn { font-family: ‘DM Mono’, monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 7px 16px; border-radius: 2px; cursor: pointer; border: 1px solid var(–line); background: transparent; color: var(–muted); transition: all 0.15s; }
+.btn:hover { background: var(–paper2); }
+.btn.primary { background: var(–ink); color: var(–paper); border-color: var(–ink); }
+.btn.primary:hover { opacity: 0.85; }
+
+/* ══ App ══ */
+.app { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem 4rem; position: relative; z-index: 1; }
+.header { display: flex; align-items: flex-end; justify-content: space-between; border-bottom: 1.5px solid var(–ink); padding-bottom: 0.75rem; margin-bottom: 2rem; flex-wrap: wrap; gap: 0.5rem; }
+.brand { font-family: ‘DM Serif Display’, serif; font-size: 2rem; letter-spacing: -0.02em; line-height: 1; }
+.brand span { font-style: italic; color: var(–accent); }
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* User pill */
+.user-pill { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border: 1px solid var(–line); border-radius: 20px; cursor: pointer; transition: all 0.15s; background: #fff8f0; }
+.user-pill:hover { border-color: var(–ink); }
+.pill-av { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: ‘DM Serif Display’, serif; font-size: 0.85rem; color: #fff; }
+.pill-name { font-size: 12px; font-weight: 500; }
+.pill-sw { font-size: 10px; color: var(–muted); letter-spacing: 0.04em; }
+
+.view-toggle { display: flex; border: 1px solid var(–line); border-radius: 2px; overflow: hidden; }
+.view-btn { padding: 5px 14px; font-family: ‘DM Mono’, monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; background: transparent; border: none; cursor: pointer; color: var(–muted); transition: all 0.2s; }
+.view-btn.active { background: var(–ink); color: var(–paper); }
+.month-nav { display: flex; align-items: center; gap: 0.5rem; }
+.nav-btn { width: 28px; height: 28px; border: 1px solid var(–line); border-radius: 2px; background: transparent; cursor: pointer; font-size: 16px; color: var(–ink); display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+.nav-btn:hover { background: var(–paper2); }
+.month-display { font-family: ‘DM Serif Display’, serif; font-size: 1.1rem; min-width: 160px; text-align: center; }
+
+.main { display: grid; grid-template-columns: 1fr 220px; gap: 2rem; align-items: start; }
+@media(max-width:680px){ .main{grid-template-columns:1fr;} .sidebar{order:-1;} }
+
+.wheel-wrap { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+#wheelCanvas { cursor: pointer; display: block; max-width: 100%; }
+.wheel-footer { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(–muted); }
+.leg-dot { width: 9px; height: 9px; border-radius: 50%; }
+.zoom-row { display: flex; align-items: center; gap: 8px; }
+.zoom-row label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(–muted); }
+.zoom-row input[type=range] { width: 80px; accent-color: var(–accent); }
+.zoom-row span { font-size: 10px; color: var(–muted); min-width: 32px; }
+
+#tooltip { position: fixed; background: var(–ink); color: var(–paper); font-family: ‘DM Mono’, monospace; font-size: 11px; padding: 5px 10px; border-radius: 2px; pointer-events: none; opacity: 0; transition: opacity 0.1s; white-space: nowrap; z-index: 1000; }
+
+.sidebar-section { margin-bottom: 1.5rem; }
+.section-label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(–muted); margin-bottom: 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(–line); }
+.habit-list { display: flex; flex-direction: column; gap: 4px; }
+.habit-row { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid transparent; border-radius: 2px; cursor: pointer; transition: all 0.15s; position: relative; }
+.habit-row:hover { background: var(–paper2); border-color: var(–line); }
+.habit-row.active { background: var(–paper2); border-color: var(–ink); }
+.hcolor { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.hname { font-size: 12px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hpct { font-size: 10px; color: var(–muted); }
+.hdel { opacity: 0; font-size: 14px; color: var(–muted); background: none; border: none; cursor: pointer; padding: 0 2px; line-height: 1; transition: opacity 0.1s; }
+.habit-row:hover .hdel { opacity: 1; }
+.hdel:hover { color: var(–miss); }
+.add-form { display: flex; gap: 5px; margin-top: 6px; }
+.add-form input { flex: 1; font-family: ‘DM Mono’, monospace; font-size: 12px; padding: 6px 8px; border: 1px solid var(–line); border-radius: 2px; background: transparent; color: var(–ink); outline: none; transition: border-color 0.15s; }
+.add-form input:focus { border-color: var(–ink); }
+.add-form input::placeholder { color: var(–muted); }
+.add-form button { padding: 6px 10px; border: 1px solid var(–line); border-radius: 2px; background: transparent; cursor: pointer; font-size: 16px; color: var(–muted); transition: all 0.15s; }
+.add-form button:hover { background: var(–ink); color: var(–paper); border-color: var(–ink); }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.stat-card { background: var(–paper2); border: 1px solid var(–line); border-radius: 2px; padding: 8px 10px; }
+.stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(–muted); margin-bottom: 2px; }
+.stat-value { font-family: ‘DM Serif Display’, serif; font-size: 1.4rem; }
+
+.notes-area { width: 100%; height: 80px; font-family: ‘DM Mono’, monospace; font-size: 11px; padding: 8px; border: 1px solid var(–line); border-radius: 2px; background: transparent; color: var(–ink); resize: none; outline: none; transition: border-color 0.15s; line-height: 1.6; }
+.notes-area:focus { border-color: var(–ink); }
+.notes-area::placeholder { color: var(–line); }
+.divider { height: 1px; background: var(–line); margin: 1.5rem 0; }
+
+#yearView { display: none; }
+.year-header { font-family: ‘DM Serif Display’, serif; font-size: 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; }
+.year-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+@media(max-width:600px){ .year-grid{grid-template-columns:repeat(2,1fr);} }
+.mini-card { border: 1px solid var(–line); border-radius: 3px; padding: 10px 8px; background: #fff8f0; cursor: pointer; transition: all 0.15s; text-align: center; }
+.mini-card:hover { border-color: var(–ink); transform: translateY(-1px); }
+.mini-card.cur { border-color: var(–today); border-width: 1.5px; }
+.mini-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(–muted); margin-bottom: 6px; }
+.mini-canvas { display: block; width: 100%; }
+.mini-pct { font-family: ‘DM Serif Display’, serif; font-size: 1rem; margin-top: 4px; color: var(–accent); }
+</style>
+
+</head>
+<body>
+<div id="tooltip"></div>
+
+<!-- ══ User Screen ══ -->
+
+<div id="userScreen">
+  <div>
+    <div class="us-title">Habit <span>Tracker</span></div>
+    <div class="us-sub">Who's tracking today?</div>
+  </div>
+  <div class="user-grid" id="userGrid"></div>
+  <div id="newUserModal">
+    <div class="modal-title">New user</div>
+    <div class="mfield">
+      <div class="mlabel">Name</div>
+      <input class="minput" id="nuName" placeholder="Your name" maxlength="20" onkeydown="if(event.key==='Enter')createUser()">
+    </div>
+    <div class="mfield">
+      <div class="mlabel">Colour</div>
+      <div class="color-picker" id="nuColors"></div>
+    </div>
+    <div class="mbtns">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="createUser()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Main App ══ -->
+
+<div class="app" id="mainApp" style="display:none">
+  <div class="header">
+    <div class="brand">Habit <span>Tracker</span></div>
+    <div class="header-right">
+      <div class="user-pill" onclick="showUserScreen()" id="userPill">
+        <div class="pill-av" id="pillAv"></div>
+        <span class="pill-name" id="pillName"></span>
+        <span class="pill-sw">switch ›</span>
+      </div>
+      <div class="view-toggle">
+        <button class="view-btn active" id="tabMonth" onclick="setView('month')">Month</button>
+        <button class="view-btn" id="tabYear" onclick="setView('year')">Year</button>
+      </div>
+      <div class="month-nav" id="monthNav">
+        <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+        <span class="month-display" id="monthDisplay"></span>
+        <button class="nav-btn" onclick="changeMonth(1)">›</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="monthView">
+    <div class="main">
+      <div class="wheel-wrap">
+        <canvas id="wheelCanvas"></canvas>
+        <div class="wheel-footer">
+          <div class="legend">
+            <div class="leg"><div class="leg-dot" style="background:#4a7c59"></div>Done</div>
+            <div class="leg"><div class="leg-dot" style="background:#c0a09a"></div>Missed</div>
+            <div class="leg"><div class="leg-dot" style="background:#ddd9cf"></div>Upcoming</div>
+            <div class="leg"><div class="leg-dot" style="background:#c9a84c"></div>Today</div>
+          </div>
+          <div class="zoom-row">
+            <label>Zoom</label>
+            <input type="range" min="50" max="160" value="100" id="zoomSlider" oninput="setZoom(this.value)">
+            <span id="zoomVal">100%</span>
+          </div>
+        </div>
+      </div>
+      <div class="sidebar">
+        <div class="sidebar-section">
+          <div class="section-label">Habits</div>
+          <div class="habit-list" id="habitList"></div>
+          <div class="add-form">
+            <input id="habitInput" placeholder="Add a habit…" maxlength="24" onkeydown="if(event.key==='Enter')doAddHabit()">
+            <button onclick="doAddHabit()">+</button>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="sidebar-section">
+          <div class="section-label">This month</div>
+          <div class="stats-grid" id="statsGrid"></div>
+        </div>
+        <div class="divider"></div>
+        <div class="sidebar-section">
+          <div class="section-label">Notes</div>
+          <textarea class="notes-area" id="notesArea" placeholder="Reflection, goals…" oninput="saveNotes()"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="yearView">
+    <div class="year-header">
+      <button class="nav-btn" onclick="curYear--;renderYear()">‹</button>
+      <span id="yearDisplay"></span>
+      <button class="nav-btn" onclick="curYear++;renderYear()">›</button>
+    </div>
+    <div class="year-grid" id="yearGrid"></div>
+  </div>
+</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const HCOLORS=['#4a7c59','#8b3a2a','#2d5a9e','#7a5c2a','#6b3a7a','#3a7a7a','#7a3a5c','#5c7a3a'];
+const ACOLORS=['#4a7c59','#8b3a2a','#2d5a9e','#7a5c2a','#6b3a7a','#1a7a6a','#8a5a20','#5a2a6a','#2a6a8a','#6a3a3a'];
+
+const today=new Date();
+let curYear=today.getFullYear(),curMonth=today.getMonth();
+let view='month',zoom=1.0,selHabit=0,hitMap=[];
+let users=[],curUser=0,newColor=ACOLORS[0];
+
+// ── User data accessors ────────────────────────────────────
+const U=()=>users[curUser];
+const H=()=>U().habits;
+const C=()=>U().completions;
+const N=()=>U().notes;
+
+// ── Persistence ───────────────────────────────────────────
+function save(){try{localStorage.setItem('ht2',JSON.stringify(users));}catch(e){}}
+function load(){
+  try{const d=localStorage.getItem('ht2');if(d)users=JSON.parse(d);}catch(e){}
+  if(!users.length){
+    users=[{id:uid(),name:'Alex',color:ACOLORS[0],
+      habits:[{name:'Exercise',color:HCOLORS[0]},{name:'Read',color:HCOLORS[1]},{name:'Meditate',color:HCOLORS[2]}],
+      completions:{},notes:{}}];
+    save();
+  }
+}
+function uid(){return Math.random().toString(36).slice(2,9);}
+
+// ── Helpers ───────────────────────────────────────────────
+const ck=(h,y,m,d)=>`${h}_${y}_${m}_${d}`;
+const nk=(y,m)=>`${y}_${m}`;
+const dim=(y,m)=>new Date(y,m+1,0).getDate();
+const init=(n)=>n.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const status=(h,y,m,d)=>C()[ck(h,y,m,d)]||'none';
+function toggle(h,y,m,d){const k=ck(h,y,m,d);C()[k]=(C()[k]==='done')?'none':'done';save();}
+const isPast=(y,m,d)=>new Date(y,m,d)<new Date(today.getFullYear(),today.getMonth(),today.getDate());
+const isToday=(y,m,d)=>y===today.getFullYear()&&m===today.getMonth()&&d===today.getDate();
+
+function habitPct(hi,y,m){
+  const days=dim(y,m);
+  const lim=(y===today.getFullYear()&&m===today.getMonth())?today.getDate()-1:days;
+  if(lim<=0)return 0;
+  let done=0;for(let d=1;d<=lim;d++)if(status(hi,y,m,d)==='done')done++;
+  return Math.round(done/lim*100);
+}
+function monthDone(y,m){
+  let done=0,total=0;
+  const lim=(y===today.getFullYear()&&m===today.getMonth())?today.getDate()-1:dim(y,m);
+  H().forEach((_,hi)=>{for(let d=1;d<=lim;d++){total++;if(status(hi,y,m,d)==='done')done++;}});
+  return{done,total};
+}
+function streak(hi){
+  let s=0,d=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+  while(true){const y=d.getFullYear(),m=d.getMonth(),dd=d.getDate();if(status(hi,y,m,dd)!=='done')break;s++;d.setDate(d.getDate()-1);}
+  return s;
+}
+
+// ── User Screen ───────────────────────────────────────────
+function showUserScreen(){
+  document.getElementById('userScreen').classList.remove('hidden');
+  document.getElementById('mainApp').style.display='none';
+  renderUserGrid();
+}
+function closeUserScreen(){
+  document.getElementById('userScreen').classList.add('hidden');
+  document.getElementById('mainApp').style.display='block';
+}
+function renderUserGrid(){
+  const grid=document.getElementById('userGrid');
+  grid.innerHTML='';
+  users.forEach((u,i)=>{
+    const c=document.createElement('div');
+    c.className='user-card';
+    c.innerHTML=`<button class="u-del" onclick="event.stopPropagation();deleteUser(${i})">×</button><div class="u-avatar" style="background:${u.color}">${init(u.name)}</div><div class="u-name">${u.name}</div>`;
+    c.onclick=()=>selectUser(i);
+    grid.appendChild(c);
+  });
+  const add=document.createElement('div');
+  add.className='add-user-card';
+  add.innerHTML='<div class="add-icon">+</div><div>New user</div>';
+  add.onclick=openModal;
+  grid.appendChild(add);
+}
+function selectUser(i){
+  curUser=i;selHabit=0;
+  updatePill();closeUserScreen();renderMonth();
+}
+function deleteUser(i){
+  if(users.length<=1){alert('Need at least one user.');return;}
+  if(!confirm(`Remove "${users[i].name}"? All data will be lost.`))return;
+  users.splice(i,1);save();
+  if(curUser>=users.length)curUser=users.length-1;
+  renderUserGrid();
+}
+function openModal(){
+  newColor=ACOLORS[Math.floor(Math.random()*ACOLORS.length)];
+  document.getElementById('nuName').value='';
+  const cp=document.getElementById('nuColors');cp.innerHTML='';
+  ACOLORS.forEach(col=>{
+    const sw=document.createElement('div');
+    sw.className='cswatch'+(col===newColor?' sel':'');
+    sw.style.background=col;
+    sw.onclick=()=>{newColor=col;cp.querySelectorAll('.cswatch').forEach(s=>s.classList.remove('sel'));sw.classList.add('sel');};
+    cp.appendChild(sw);
+  });
+  document.getElementById('newUserModal').classList.add('show');
+  setTimeout(()=>document.getElementById('nuName').focus(),50);
+}
+function closeModal(){document.getElementById('newUserModal').classList.remove('show');}
+function createUser(){
+  const name=document.getElementById('nuName').value.trim();
+  if(!name){document.getElementById('nuName').focus();return;}
+  users.push({id:uid(),name,color:newColor,habits:[],completions:{},notes:{}});
+  save();closeModal();renderUserGrid();
+}
+function updatePill(){
+  const u=U();
+  const av=document.getElementById('pillAv');
+  av.style.background=u.color;av.textContent=init(u.name);
+  document.getElementById('pillName').textContent=u.name;
+}
+
+// ── Navigation ────────────────────────────────────────────
+function setView(v){
+  view=v;
+  document.getElementById('tabMonth').classList.toggle('active',v==='month');
+  document.getElementById('tabYear').classList.toggle('active',v==='year');
+  document.getElementById('monthNav').style.display=v==='month'?'flex':'none';
+  document.getElementById('monthView').style.display=v==='month'?'block':'none';
+  document.getElementById('yearView').style.display=v==='year'?'block':'none';
+  if(v==='month')renderMonth();else renderYear();
+}
+function changeMonth(d){
+  curMonth+=d;if(curMonth<0){curMonth=11;curYear--;}if(curMonth>11){curMonth=0;curYear++;}
+  renderMonth();
+}
+function setZoom(v){zoom=v/100;document.getElementById('zoomVal').textContent=Math.round(v)+'%';renderWheel();}
+function saveNotes(){N()[nk(curYear,curMonth)]=document.getElementById('notesArea').value;save();}
+
+// ── Habits CRUD ───────────────────────────────────────────
+function doAddHabit(){
+  const inp=document.getElementById('habitInput');
+  const name=inp.value.trim();if(!name)return;
+  H().push({name,color:HCOLORS[H().length%HCOLORS.length]});
+  inp.value='';save();renderMonth();
+}
+function delHabit(i){
+  H().splice(i,1);if(selHabit>=H().length)selHabit=Math.max(0,H().length-1);
+  save();renderMonth();
+}
+
+// ── Draw Wheel ────────────────────────────────────────────
+function drawWheel(canvas,y,m,hiSel,zf,isMain){
+  const ct=canvas.getContext('2d'),sz=canvas.width;
+  ct.clearRect(0,0,sz,sz);
+  const cx=sz/2,cy=sz/2,days=dim(y,m);
+  const rings=Math.max(H().length,1),maxR=sz*0.42,innerR=maxR*0.26;
+  const ringW=(maxR-innerR)/rings,SA=-Math.PI/2,sA=2*Math.PI/days;
+  const local=[];
+
+  ct.save();ct.beginPath();ct.arc(cx,cy,maxR+18,0,Math.PI*2);ct.fillStyle='rgba(255,248,240,0.6)';ct.fill();ct.restore();
+
+  for(let hi=0;hi<H().length;hi++){
+    for(let d=1;d<=days;d++){
+      const a0=SA+(d-1)*sA,a1=a0+sA-0.012;
+      const r0=innerR+hi*ringW+1.5,r1=innerR+(hi+1)*ringW-1.5;
+      const st=status(hi,y,m,d),past=isPast(y,m,d),tod=isToday(y,m,d);
+      const isSel=H().length===1||hi===hiSel;
+      let fill=tod?'#c9a84c':st==='done'?H()[hi].color:past?'#c0a09a':'#ddd9cf';
+      ct.save();
+      ct.globalAlpha=isSel?1:0.22;
+      ct.beginPath();ct.arc(cx,cy,r1,a0,a1);ct.arc(cx,cy,r0,a1,a0,true);ct.closePath();
+      ct.fillStyle=fill;ct.fill();
+      if(isMain){ct.globalAlpha=0.15;ct.strokeStyle='#1a1a18';ct.lineWidth=0.4;ct.stroke();}
+      ct.restore();
+      if(isMain)local.push({hi,d,r0,r1});
+    }
+  }
+  ct.save();ct.beginPath();ct.arc(cx,cy,innerR-2,0,Math.PI*2);ct.fillStyle='#f5f2eb';ct.fill();ct.restore();
+
+  const fz=Math.max(7,Math.round(8.5*(zf||1)));
+  for(let d=1;d<=days;d++){
+    const angle=SA+(d-0.5)*sA,lr=maxR+13*(zf||1);
+    ct.save();ct.font=`${fz}px 'DM Mono',monospace`;
+    ct.fillStyle=isToday(y,m,d)?'#c9a84c':'#8a8577';
+    ct.textAlign='center';ct.textBaseline='middle';
+    ct.fillText(d<10?'0'+d:''+d,cx+Math.cos(angle)*lr,cy+Math.sin(angle)*lr);
+    ct.restore();
+  }
+  if(H().length>0){
+    const p=habitPct(hiSel,y,m);
+    ct.save();ct.textAlign='center';ct.textBaseline='middle';
+    ct.font=`${Math.round(18*(zf||1))}px 'DM Serif Display',serif`;
+    ct.fillStyle=H()[hiSel]?.color||'#4a7c59';
+    ct.fillText(p+'%',cx,cy-9*(zf||1));
+    ct.font=`${Math.round(9*(zf||1))}px 'DM Mono',monospace`;
+    ct.fillStyle='#8a8577';
+    ct.fillText((H()[hiSel]?.name||'').toUpperCase(),cx,cy+9*(zf||1));
+    ct.restore();
+  }
+  return local;
+}
+
+// ── Render Month ──────────────────────────────────────────
+function renderWheel(){
+  const wc=document.getElementById('wheelCanvas');
+  const W=Math.min(wc.parentElement.clientWidth-20,480);
+  const sz=Math.round(W*zoom);
+  wc.width=sz;wc.height=sz;wc.style.width=sz+'px';wc.style.height=sz+'px';
+  hitMap=drawWheel(wc,curYear,curMonth,selHabit,zoom,true);
+  document.getElementById('monthDisplay').textContent=MONTHS[curMonth]+' '+curYear;
+}
+function renderHabitList(){
+  const el=document.getElementById('habitList');el.innerHTML='';
+  H().forEach((h,i)=>{
+    const p=habitPct(i,curYear,curMonth);
+    const div=document.createElement('div');
+    div.className='habit-row'+(i===selHabit?' active':'');
+    div.innerHTML=`<div class="hcolor" style="background:${h.color}"></div><span class="hname">${h.name}</span><span class="hpct">${p}%</span><button class="hdel" onclick="event.stopPropagation();delHabit(${i})">×</button>`;
+    div.onclick=()=>{selHabit=i;renderMonth();};
+    el.appendChild(div);
+  });
+}
+function renderStats(){
+  const sg=document.getElementById('statsGrid');
+  const{done,total}=monthDone(curYear,curMonth);
+  const ov=total?Math.round(done/total*100):0;
+  const str=selHabit<H().length?streak(selHabit):0;
+  const p=habitPct(selHabit,curYear,curMonth);
+  const days=dim(curYear,curMonth);
+  const left=days-(curMonth===today.getMonth()&&curYear===today.getFullYear()?today.getDate():days);
+  sg.innerHTML=`
+    <div class="stat-card"><div class="stat-label">Overall</div><div class="stat-value">${ov}%</div></div>
+    <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-value">${str}d</div></div>
+    <div class="stat-card"><div class="stat-label">${H()[selHabit]?.name||'Habit'}</div><div class="stat-value">${p}%</div></div>
+    <div class="stat-card"><div class="stat-label">Days left</div><div class="stat-value">${left}</div></div>`;
+}
+function renderNotes(){document.getElementById('notesArea').value=N()[nk(curYear,curMonth)]||'';}
+function renderMonth(){renderWheel();renderHabitList();renderStats();renderNotes();}
+
+// ── Wheel interaction ─────────────────────────────────────
+const wc=document.getElementById('wheelCanvas');
+const tip=document.getElementById('tooltip');
+function getHit(e){
+  const rect=wc.getBoundingClientRect();
+  const scX=wc.width/rect.width,scY=wc.height/rect.height;
+  const x=(e.clientX-rect.left)*scX,y=(e.clientY-rect.top)*scY;
+  const cx=wc.width/2,cy=wc.height/2,r=Math.sqrt((x-cx)**2+(y-cy)**2);
+  let ang=Math.atan2(y-cy,x-cx)-(-Math.PI/2);if(ang<0)ang+=2*Math.PI;
+  const d=Math.floor(ang/(2*Math.PI/dim(curYear,curMonth)))+1;
+  for(const c of hitMap)if(r>=c.r0&&r<=c.r1&&c.d===d)return c;
+  return null;
+}
+wc.addEventListener('click',e=>{const c=getHit(e);if(!c)return;toggle(c.hi,curYear,curMonth,c.d);renderMonth();});
+wc.addEventListener('mousemove',e=>{
+  const c=getHit(e);
+  if(c){
+    const st=status(c.hi,curYear,curMonth,c.d),past=isPast(curYear,curMonth,c.d);
+    tip.textContent=`${H()[c.hi]?.name} · ${MONTHS[curMonth].slice(0,3)} ${c.d} · ${st==='done'?'✓ done':past?'✗ missed':'upcoming'}`;
+    tip.style.opacity=1;tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+10)+'px';
+  }else tip.style.opacity=0;
+});
+wc.addEventListener('mouseleave',()=>{tip.style.opacity=0;});
+
+// ── Year view ─────────────────────────────────────────────
+function renderYear(){
+  document.getElementById('yearDisplay').textContent=curYear;
+  const grid=document.getElementById('yearGrid');grid.innerHTML='';
+  for(let m=0;m<12;m++){
+    const card=document.createElement('div');
+    card.className='mini-card'+(m===curMonth&&curYear===today.getFullYear()?' cur':'');
+    const p=habitPct(selHabit,curYear,m);
+    card.innerHTML=`<div class="mini-label">${MONTHS[m].slice(0,3)} ${curYear}</div><canvas class="mini-canvas" id="mc${m}" width="90" height="90"></canvas><div class="mini-pct">${p}%</div>`;
+    card.onclick=(()=>{const mm=m;return()=>{curMonth=mm;setView('month');};})();
+    grid.appendChild(card);
+    setTimeout(()=>{const c=document.getElementById('mc'+m);if(c)drawWheel(c,curYear,m,selHabit,0.55,false);},10);
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────
+window.addEventListener('resize',()=>{if(view==='month')renderWheel();});
+window.addEventListener('load',()=>{
+  load();
+  renderUserGrid();
+  if(users.length===1){curUser=0;selectUser(0);}
+});
+</script>
+
+</body>
+</html>
